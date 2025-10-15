@@ -1,0 +1,31 @@
+# Git相关
+.git
+.gitignore
+
+# Rust构建产物
+target/
+Cargo.lock
+
+# 文档和脚本
+README*.md
+*.sh
+Makefile
+Dockerfile*
+docker-compose.yml
+.dockerignore
+
+# 测试文件
+test.sh
+demo.sh
+
+# 临时文件
+*.tmp
+*.log
+
+# IDE配置
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db

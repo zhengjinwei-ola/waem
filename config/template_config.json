@@ -1,0 +1,111 @@
+{
+  "document_title": "商家水费电费账单",
+  "title_font_size": 24,
+  "title_alignment": "center",
+  "section_font_size": 14,
+  "timestamp_font_size": 10,
+  "merchant_template": {
+    "sections": [
+      {
+        "name": "title",
+        "type": "title",
+        "content": "商家水费电费账单"
+      },
+      {
+        "name": "merchant_info",
+        "type": "text",
+        "content": "商家名称：{merchant_name}",
+        "font_size": 16,
+        "bold": true
+      },
+      {
+        "name": "period_info",
+        "type": "text",
+        "content": "账单期间：{year}年{month}月",
+        "font_size": 14
+      },
+      {
+        "name": "water_meter",
+        "type": "section",
+        "title": "水表读数",
+        "items": [
+          "上期水表读数：{prev_water_reading} 吨",
+          "本期水表读数：{curr_water_reading} 吨",
+          "本月用水量：{water_usage} 吨"
+        ]
+      },
+      {
+        "name": "electricity_meters",
+        "type": "section",
+        "title": "电表信息（共{electricity_meter_count}个电表）",
+        "items": [
+          "{electricity_details}"
+        ]
+      },
+      {
+        "name": "usage_summary",
+        "type": "section",
+        "title": "用量汇总",
+        "items": [
+          "本月总用电量：{electricity_usage} 度",
+          "本月总用水量：{water_usage} 吨"
+        ]
+      },
+      {
+        "name": "cost_calculation",
+        "type": "section",
+        "title": "费用计算",
+        "items": [
+          "电费单价：{electricity_unit_price} 元/度",
+          "水费单价：{water_unit_price} 元/吨",
+          "电费总额：{electricity_amount} 元",
+          "水费总额：{water_amount} 元"
+        ]
+      },
+      {
+        "name": "total_amount",
+        "type": "text",
+        "content": "费用合计：{total_amount} 元",
+        "font_size": 16,
+        "bold": true,
+        "color": "FF0000"
+      },
+      {
+        "name": "timestamp",
+        "type": "timestamp",
+        "format": "生成时间：{datetime}",
+        "alignment": "right"
+      }
+    ]
+  },
+  "summary_template": {
+    "sections": [
+      {
+        "name": "title",
+        "type": "title",
+        "content": "水费电费汇总表"
+      },
+      {
+        "name": "period_info",
+        "type": "text",
+        "content": "统计期间：{year}年{month}月"
+      },
+      {
+        "name": "table",
+        "type": "table",
+        "include_headers": true,
+        "include_total_row": true
+      },
+      {
+        "name": "timestamp",
+        "type": "timestamp",
+        "format": "生成时间：{datetime}",
+        "alignment": "right"
+      }
+    ]
+  },
+  "output_format": "docx",
+  "default_output_name": "merchant_bills.docx",
+  "individual_bills": true,
+  "summary_table": false
+}
