@@ -427,9 +427,6 @@ pub fn generate_word_document_with_template(
         }
     }
     
-    // 添加分页符，让汇总表格另起一页
-    doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
-    
     // 添加汇总表格
     doc = add_summary_table(doc, merchants)?;
     
