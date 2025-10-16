@@ -5,6 +5,8 @@ use calamine::{open_workbook, DataType, Reader, Xlsx};
 use chrono::{Datelike, Local};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::process::Command;
+use std::fs;
 
 // 导入模板模块
 mod template_simple;
@@ -178,26 +180,87 @@ fn main() -> Result<()> {
             println!("使用配置文件生成Word文档...");
             let bills = read_data_file(input, &get_default_headers())?;
             let docx_content = generate_word_document_with_template(&bills, Some(config))?;
-            std::fs::write(output, docx_content)?;
-            println!("✅ Word文档生成成功: {}", output);
+            write_docx_or_pdf(output, docx_content)?;
         }
         Commands::Default { input, output } => {
             println!("使用默认配置生成Word文档...");
             let bills = read_data_file(input, &get_default_headers())?;
             let docx_content = generate_word_document_with_template(&bills, None)?;
-            std::fs::write(output, docx_content)?;
-            println!("✅ Word文档生成成功: {}", output);
+            write_docx_or_pdf(output, docx_content)?;
         }
         Commands::Legacy { input, output } => {
             println!("使用传统方式生成Word文档...");
             let bills = read_data_file(input, &get_default_headers())?;
             let docx_content = generate_word_document_with_template(&bills, None)?;
-            std::fs::write(output, docx_content)?;
-            println!("✅ Word文档生成成功: {}", output);
+            write_docx_or_pdf(output, docx_content)?;
         }
     }
 
     Ok(())
+}
+
+fn write_docx_or_pdf(output: &str, docx_bytes: Vec<u8>) -> Result<()> {
+    let out_path = Path::new(output);
+    let ext = out_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if ext == "pdf" {
+        // 写入临时 DOCX，然后转换为 PDF
+        let tmp_docx_path = out_path.with_extension("docx");
+        fs::write(&tmp_docx_path, &docx_bytes)?;
+        convert_docx_to_pdf(&tmp_docx_path, out_path)?;
+        // 转换完成后删除临时 DOCX（忽略错误）
+        let _ = fs::remove_file(&tmp_docx_path);
+        println!("✅ PDF 生成成功: {}", out_path.display());
+    } else {
+        fs::write(out_path, &docx_bytes)?;
+        println!("✅ Word文档生成成功: {}", out_path.display());
+    }
+    Ok(())
+}
+
+fn convert_docx_to_pdf(docx_path: &Path, pdf_path: &Path) -> Result<()> {
+    // 优先尝试 LibreOffice 系列（soffice/libreoffice/lowriter）
+    let tools = ["soffice", "libreoffice", "lowriter"];
+    for tool in tools.iter() {
+        let dir = pdf_path.parent().unwrap_or_else(|| Path::new("."));
+        // 确保输出目录存在
+        fs::create_dir_all(dir).ok();
+        let status = Command::new(tool)
+            .args(["--headless", "--convert-to", "pdf", "--outdir"]) 
+            .arg(dir)
+            .arg(docx_path)
+            .status();
+        if let Ok(s) = status {
+            if s.success() {
+                // LibreOffice 会在 outdir 下生成同名 pdf
+                let generated = dir.join(docx_path.file_stem().unwrap_or_default()).with_extension("pdf");
+                if generated != pdf_path {
+                    // 移动/覆盖到目标路径
+                    if generated.exists() {
+                        fs::rename(&generated, pdf_path)
+                            .or_else(|_| {
+                                // 跨设备移动失败则复制
+                                fs::copy(&generated, pdf_path).map(|_| ()).and_then(|_| fs::remove_file(&generated))
+                            })?;
+                    }
+                }
+                return Ok(());
+            }
+        }
+    }
+
+    // 尝试 pandoc
+    let status = Command::new("pandoc")
+        .arg(docx_path)
+        .arg("-o")
+        .arg(pdf_path)
+        .status();
+    if let Ok(s) = status {
+        if s.success() {
+            return Ok(());
+        }
+    }
+
+    anyhow::bail!("未找到可用的转换工具，请安装 LibreOffice(soffice/libreoffice/lowriter) 或 pandoc")
 }
 
 fn get_default_headers() -> HeadersMap<'static> {

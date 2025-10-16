@@ -1,4 +1,5 @@
-use std::{io::Write, fs::File, path::PathBuf};
+use std::{io::Write, fs::{self, File}, path::PathBuf};
+use std::process::Command;
 use axum::{response::{Html, IntoResponse}, routing::{get, post}, Router, extract::Multipart};
 use anyhow::Result;
 use tempfile::tempdir;
@@ -57,7 +58,8 @@ small{color:#6b7280}
     <input name="meter_reader" type="text" placeholder="请输入抄表人"/>
     <label>抄表日期</label>
     <input name="meter_date" type="text" placeholder="例如：2025年08月16日"/>
-    <button type="submit">生成Word</button>
+    <label><input name="as_pdf" type="checkbox" value="1"/> 输出为 PDF</label>
+    <button type="submit">生成</button>
     <div><small>提示：表头需要与输入框一致或为常见别名。</small></div>
   </form>
 </div>
@@ -68,6 +70,7 @@ small{color:#6b7280}
 async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let mut params = DefaultParams::default();
     let mut saved_path: Option<PathBuf> = None;
+    let mut as_pdf: bool = false;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().map(|s| s.to_string()).unwrap_or_default();
@@ -98,6 +101,7 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                 "meter_date" => params.meter_date = value,
                 "custom_title" => params.custom_title = value,
                 "per_page" => params.per_page = value,
+                "as_pdf" => as_pdf = value == "1" || value.to_lowercase() == "on" || value.to_lowercase() == "true",
                 _ => {}
             }
         }
@@ -106,11 +110,32 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let path = if let Some(p) = saved_path { p } else { return Html("上传失败：未收到文件").into_response() };
 
     match process_file_to_docx(path, params).await {
-        Ok((filename, bytes)) => (
-            [("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-             ("Content-Disposition", &format!("attachment; filename=\"{}\"", filename))],
-            bytes
-        ).into_response(),
+        Ok((filename, bytes)) => {
+            if as_pdf {
+                match convert_docx_bytes_to_pdf(&bytes) {
+                    Ok((_, pdf_bytes)) => {
+                        // 使用前端自定义标题生成的DOCX文件名，替换为 .pdf
+                        let pdf_name = {
+                            let p = std::path::Path::new(&filename);
+                            let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+                            format!("{}.pdf", stem)
+                        };
+                        (
+                            [("Content-Type", "application/pdf"),
+                             ("Content-Disposition", &format!("attachment; filename=\"{}\"", pdf_name))],
+                            pdf_bytes
+                        ).into_response()
+                    },
+                    Err(e) => Html(format!("生成PDF失败：{}", e)).into_response(),
+                }
+            } else {
+                (
+                    [("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                     ("Content-Disposition", &format!("attachment; filename=\"{}\"", filename))],
+                    bytes
+                ).into_response()
+            }
+        },
         Err(e) => Html(format!("生成失败：{}", e)).into_response(),
     }
 }
@@ -188,5 +213,52 @@ async fn process_file_to_docx(path: PathBuf, params: DefaultParams) -> anyhow::R
         format!("{}.docx", clean_title)
     };
     Ok((filename, docx_content))
+}
+
+fn convert_docx_bytes_to_pdf(docx_bytes: &[u8]) -> anyhow::Result<(String, Vec<u8>)> {
+    use anyhow::Context;
+    // 将字节写入临时 DOCX 文件
+    let dir = tempfile::tempdir().context("无法创建临时目录")?;
+    let docx_path = dir.path().join("output.docx");
+    let mut f = File::create(&docx_path).context("无法创建临时DOCX文件")?;
+    f.write_all(docx_bytes).context("写入临时DOCX失败")?;
+
+    // 使用 LibreOffice 或 pandoc 转换
+    let pdf_path = dir.path().join("output.pdf");
+
+    // 优先 soffice/libreoffice/lowriter
+    let tools = ["soffice", "libreoffice", "lowriter"];
+    for tool in tools.iter() {
+        let status = Command::new(tool)
+            .args(["--headless", "--convert-to", "pdf", "--outdir"]) 
+            .arg(dir.path())
+            .arg(&docx_path)
+            .status();
+        if let Ok(s) = status {
+            if s.success() {
+                // 读取生成的 PDF（文件名可能是 output.pdf）
+                let generated = dir.path().join("output.pdf");
+                let actual_pdf = if generated.exists() { generated } else { pdf_path.clone() };
+                let bytes = fs::read(&actual_pdf).context("读取生成的PDF失败")?;
+                let filename = "output.pdf".to_string();
+                return Ok((filename, bytes));
+            }
+        }
+    }
+
+    // 回退到 pandoc
+    if let Ok(status) = Command::new("pandoc")
+        .arg(&docx_path)
+        .arg("-o")
+        .arg(&pdf_path)
+        .status() {
+        if status.success() {
+            let bytes = fs::read(&pdf_path).context("读取生成的PDF失败")?;
+            let filename = "output.pdf".to_string();
+            return Ok((filename, bytes));
+        }
+    }
+
+    anyhow::bail!("未找到可用的转换工具，请安装 LibreOffice(soffice/libreoffice/lowriter) 或 pandoc")
 }
 
