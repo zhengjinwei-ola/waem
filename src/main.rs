@@ -225,7 +225,7 @@ fn convert_docx_to_pdf(docx_path: &Path, pdf_path: &Path) -> Result<()> {
         // 确保输出目录存在
         fs::create_dir_all(dir).ok();
         let status = Command::new(tool)
-            .args(["--headless", "--convert-to", "pdf", "--outdir"]) 
+            .args(["--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir"]) 
             .arg(dir)
             .arg(docx_path)
             .status();

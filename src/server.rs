@@ -230,7 +230,7 @@ fn convert_docx_bytes_to_pdf(docx_bytes: &[u8]) -> anyhow::Result<(String, Vec<u
     let tools = ["soffice", "libreoffice", "lowriter"];
     for tool in tools.iter() {
         let status = Command::new(tool)
-            .args(["--headless", "--convert-to", "pdf", "--outdir"]) 
+            .args(["--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir"]) 
             .arg(dir.path())
             .arg(&docx_path)
             .status();
