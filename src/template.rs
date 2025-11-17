@@ -344,26 +344,49 @@ impl DocumentGenerator {
     }
 
     fn create_summary_table(&self, mut doc: Docx, bills: &[MerchantBill]) -> Result<Docx, Box<dyn std::error::Error>> {
-        // 创建表格
+        // 创建表格，设置列宽和表头
         let mut table = Table::new(vec![
             TableRow::new(vec![
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("序号").bold())),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("商家名称").bold())),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费(元)").bold())),
-                TableCell::new().add_run(Run::new().add_text("电费(元)").bold()),
-                TableCell::new().add_run(Run::new().add_text("合计(元)").bold()),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("序号").bold().size(32)))
+                    .width(1000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("商家名称").bold().size(32)))
+                    .width(3500, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费(元)").bold().size(32)))
+                    .width(2000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("电费(元)").bold().size(32)))
+                    .width(2000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计(元)").bold().size(32)))
+                    .width(2000, WidthType::Dxa),
             ])
-        ]);
+            .height(600, HeightRule::AtLeast)
+        ])
+        .width(10500, WidthType::Dxa);
 
         // 添加数据行
         for (index, bill) in bills.iter().enumerate() {
             table = table.add_row(TableRow::new(vec![
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text((index + 1).to_string()))),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name))),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_amount)))),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.electricity_amount)))),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)))),
-            ]));
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text((index + 1).to_string()).size(28)))
+                    .width(1000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name).size(28)))
+                    .width(3500, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_amount)).size(28)))
+                    .width(2000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.electricity_amount)).size(28)))
+                    .width(2000, WidthType::Dxa),
+                TableCell::new()
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)).size(28)))
+                    .width(2000, WidthType::Dxa),
+            ])
+            .height(500, HeightRule::AtLeast));
         }
 
         // 添加合计行
@@ -372,12 +395,23 @@ impl DocumentGenerator {
         let grand_total: f64 = bills.iter().map(|b| b.total_fee).sum();
 
         table = table.add_row(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water)).bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_electricity)).bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold())),
-        ]));
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(32)))
+                .width(1000, WidthType::Dxa),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("").bold().size(32)))
+                .width(3500, WidthType::Dxa),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water)).bold().size(32)))
+                .width(2000, WidthType::Dxa),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_electricity)).bold().size(32)))
+                .width(2000, WidthType::Dxa),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold().size(32)))
+                .width(2000, WidthType::Dxa),
+        ])
+        .height(600, HeightRule::AtLeast));
 
         doc = doc.add_table(table);
         Ok(doc)
