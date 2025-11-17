@@ -473,16 +473,16 @@ fn generate_word_document_with_template(
 ) -> Result<Vec<u8>, anyhow::Error> {
     // 简单的模板生成，直接使用docx-rs
     use docx_rs::*;
-    
+
     let mut doc = Docx::new();
-    
+
     // 添加文档标题
     doc = doc.add_paragraph(
         Paragraph::new()
             .add_run(Run::new().add_text("商家水费电费账单").size(24))
             .align(AlignmentType::Center)
     );
-    
+
     // 为每个商家生成账单
     for (index, bill) in merchants.iter().enumerate() {
         // 商家名称
@@ -490,14 +490,14 @@ fn generate_word_document_with_template(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("商家名称：{}", bill.merchant_name)).size(16).bold())
         );
-        
+
         // 账单期间
         let now = Local::now();
         doc = doc.add_paragraph(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("账单期间：{}年{}月", now.year(), now.month())).size(14))
         );
-        
+
         // 水表读数
         doc = doc.add_paragraph(
             Paragraph::new()
@@ -515,27 +515,27 @@ fn generate_word_document_with_template(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("本月用水量：{} 吨", bill.water_usage)).size(14))
         );
-        
+
         // 电表信息
         doc = doc.add_paragraph(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("电表信息（共{}个电表）", bill.electricity_meters.len())).size(16).bold())
         );
-        
+
         for meter in &bill.electricity_meters {
             doc = doc.add_paragraph(
                 Paragraph::new()
                     .add_run(Run::new().add_text(
-                        format!("电表{}: 上期{}度, 本期{}度, 用量{}度, 费用{:.2}元", 
-                            meter.meter_id, 
-                            meter.prev_reading, 
-                            meter.curr_reading, 
-                            meter.usage, 
+                        format!("电表{}: 上期{}度, 本期{}度, 用量{}度, 费用{:.2}元",
+                            meter.meter_id,
+                            meter.prev_reading,
+                            meter.curr_reading,
+                            meter.usage,
                             meter.amount)
                     ).size(14))
             );
         }
-        
+
         // 用量汇总
         doc = doc.add_paragraph(
             Paragraph::new()
@@ -549,7 +549,7 @@ fn generate_word_document_with_template(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("本月总用水量：{} 吨", bill.water_usage)).size(14))
         );
-        
+
         // 费用计算
         doc = doc.add_paragraph(
             Paragraph::new()
@@ -571,29 +571,27 @@ fn generate_word_document_with_template(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("水费总额：{:.2} 元", bill.water_amount)).size(14))
         );
-        
+
         // 费用合计
         doc = doc.add_paragraph(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("费用合计：{:.2} 元", bill.total_fee)).size(16).bold().color("FF0000"))
         );
-        
+
         // 生成时间
         doc = doc.add_paragraph(
             Paragraph::new()
                 .add_run(Run::new().add_text(format!("生成时间：{}", Local::now().format("%Y-%m-%d %H:%M:%S"))).size(10))
                 .align(AlignmentType::Right)
         );
-        
-        // 添加分页符（除了最后一个）
-        if index < merchants.len() - 1 {
-            doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
-        }
+
+        // 添加分页符（每个商家账单后都添加）
+        doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
     }
-    
-    // 添加汇总表格
+
+    // 添加汇总表格（已经在新页面上了）
     doc = add_summary_table(doc, merchants)?;
-    
+
     let mut buf = Vec::new();
     doc.build().pack(&mut std::io::Cursor::new(&mut buf))?;
     Ok(buf)
