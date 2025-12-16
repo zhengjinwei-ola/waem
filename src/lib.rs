@@ -218,15 +218,25 @@ pub fn generate_word_document_with_template(
     use docx_rs::*;
     
     let mut doc = Docx::new();
-    
+
     let per_page = options.as_ref().map(|o| o.per_page).unwrap_or(1);
+
+    // 根据每页数量动态调整字体大小
+    // 表格字体和表头字体都使用与标题一样的大小
+    let (title_size, info_size, header_size, data_size, notice_size, row_height_header, row_height_data) = match per_page {
+        1 => (24, 18, 24, 24, 12, 480.0, 430.0),  // 一页一份
+        2 => (22, 16, 22, 22, 11, 420.0, 380.0),  // 一页两份
+        3 => (20, 14, 20, 20, 10, 350.0, 330.0),   // 一页三份
+        _ => (18, 12, 18, 18, 9, 310.0, 290.0),   // 一页四份或更多
+    };
+
     // 为每个商家生成通知单
     for (index, bill) in merchants.iter().enumerate() {
         let now = Local::now();
         let year = now.year();
         let month = now.month();
         let day = now.day();
-        
+
         // 标题：自定义或默认 "yyyy年MM月抄表计费通知单"
         let title = options
             .as_ref()
@@ -234,18 +244,18 @@ pub fn generate_word_document_with_template(
             .unwrap_or_else(|| format!("{}年{:02}月抄表计费通知单", year, month));
         doc = doc.add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(&title).bold().size(22))
+                .add_run(Run::new().add_text(&title).bold().size(title_size))
                 .align(AlignmentType::Center)
         );
-        
+
         // 编号和基本信息行（编号使用CSV的铺面编号；抄表人/日期来自页面输入）
         let meter_reader = bill.meter_reader.clone().unwrap_or_else(|| "".to_string());
         let meter_date = bill.meter_date.clone().unwrap_or_else(|| format!("{}年{:02}月{:02}日", year, month, day));
-        let info_text = format!("编号：\t{}\t姓名\t{}\t抄表人：\t{}\t抄表日期：{}", 
+        let info_text = format!("编号：\t{}\t姓名\t{}\t抄表人：\t{}\t抄表日期：{}",
             bill.shop_code, bill.merchant_name, meter_reader, meter_date);
         doc = doc.add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(&info_text).size(11))
+                .add_run(Run::new().add_text(&info_text).size(info_size))
         );
         
         // 空行
@@ -254,14 +264,15 @@ pub fn generate_word_document_with_template(
         // 创建费用明细表格
         let mut table_rows = vec![
             TableRow::new(vec![
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("项目").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("上月表底").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("本月抄表数").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("实用度数").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("公共分摊").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("单价（元）").bold().size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("金额").bold().size(12)).align(AlignmentType::Center)),
-            ]),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("项目").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("上月表底").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("本月抄表数").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("实用度数").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("公共分摊").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("单价（元）").bold().size(header_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("金额").bold().size(header_size)).align(AlignmentType::Center)),
+            ])
+            .row_height(row_height_header),
         ];
         
         // 为每个电表生成行；若电表>1，仅在最后一行显示合并后的“金额”
@@ -284,13 +295,13 @@ pub fn generate_word_document_with_template(
                 if meter_idx == 0 {
                     TableCell::new()
                         .vertical_merge(VMergeType::Restart)
-                        .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(12)).align(AlignmentType::Center))
+                        .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(data_size)).align(AlignmentType::Center))
                 } else {
                     TableCell::new()
                         .vertical_merge(VMergeType::Continue)
                 }
             } else {
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(12)).align(AlignmentType::Center))
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(data_size)).align(AlignmentType::Center))
             };
 
             // 构造金额列单元格（第7列）
@@ -298,102 +309,110 @@ pub fn generate_word_document_with_template(
                 if meter_idx == 0 {
                     TableCell::new()
                         .vertical_merge(VMergeType::Restart)
-                        .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.electricity_amount)).size(12)).align(AlignmentType::Center))
+                        .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.electricity_amount)).size(data_size)).align(AlignmentType::Center))
                 } else {
                     TableCell::new()
                         .vertical_merge(VMergeType::Continue)
                 }
             } else {
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.electricity_amount)).size(12)).align(AlignmentType::Center))
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.electricity_amount)).size(data_size)).align(AlignmentType::Center))
             };
 
             table_rows.push(TableRow::new(vec![
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&meter_name).size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.prev_reading)).size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.curr_reading)).size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.usage)).size(12)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&meter_name).size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.prev_reading)).size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.curr_reading)).size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", meter.usage)).size(data_size)).align(AlignmentType::Center)),
                 TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
                 unit_price_cell,
                 amount_cell,
-            ]));
+            ])
+            .row_height(row_height_data));
         }
         
         // 如果没有电表，添加一个空行
         if bill.electricity_meters.is_empty() {
             table_rows.push(TableRow::new(vec![
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("电表").size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(12)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("电表").size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(data_size)).align(AlignmentType::Center)),
                 TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(12)).align(AlignmentType::Center)),
-                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(12)).align(AlignmentType::Center)),
-            ]));
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.electricity_unit_price)).size(data_size)).align(AlignmentType::Center)),
+                TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0").size(data_size)).align(AlignmentType::Center)),
+            ])
+            .row_height(row_height_data));
         }
         
-        // 添加水费行（去掉“损耗/实用”子行，仅保留单价与金额）
+        // 添加水费行（去掉"损耗/实用"子行，仅保留单价与金额）
         table_rows.push(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费").size(12)).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.prev_water_reading)).size(12)).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.curr_water_reading)).size(12)).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.water_usage)).size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费").size(data_size)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.prev_water_reading)).size(data_size)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.curr_water_reading)).size(data_size)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.water_usage)).size(data_size)).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.3}", bill.water_unit_price)).size(12)).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.water_amount)).size(12)).align(AlignmentType::Center)),
-        ]));
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.3}", bill.water_unit_price)).size(data_size)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.0}", bill.water_amount)).size(data_size)).align(AlignmentType::Center)),
+        ])
+        .row_height(row_height_data));
 
         table_rows.push(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电人工费").size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电人工费").size(data_size)).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.water_electricity_labor_fee)).size(12)).align(AlignmentType::Center))
-        ]));
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.water_electricity_labor_fee)).size(data_size)).align(AlignmentType::Center))
+        ])
+        .row_height(row_height_data));
 
         table_rows.push(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("垃圾处理费").size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("垃圾处理费").size(data_size)).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.garbage_disposal_fee)).size(12)).align(AlignmentType::Center))
-        ]));
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("{:.2}", bill.garbage_disposal_fee)).size(data_size)).align(AlignmentType::Center))
+        ])
+        .row_height(row_height_data));
 
         // 添加滞纳金行（占位，金额为0）
         table_rows.push(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("滞纳金").size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("滞纳金").size(data_size)).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0.00").size(12)).align(AlignmentType::Center))
-        ]));
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0.00").size(data_size)).align(AlignmentType::Center))
+        ])
+        .row_height(row_height_data));
 
         // 添加广告费行（占位，金额为0）
         table_rows.push(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("广告费").size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("广告费").size(data_size)).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("")).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0.00").size(12)).align(AlignmentType::Center))
-        ]));
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("0.00").size(data_size)).align(AlignmentType::Center))
+        ])
+        .row_height(row_height_data));
 
         // 合计行（整行合并，先大写后小写，独占一行）
         let total_val = bill.total_fee;
         table_rows.push(TableRow::new(vec![
             // 第一列：项目名称（"合计"）
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(12)).align(AlignmentType::Center)),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(header_size)).align(AlignmentType::Center)),
             // 第二列到第七列合并：显示大写和小写金额
             TableCell::new()
                 .grid_span(6)
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("大写：{}    小写：{:.2}", rmb_upper(total_val), total_val)).bold().size(12)).align(AlignmentType::Center))
-        ]));
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&format!("大写：{}    小写：{:.2}", rmb_upper(total_val), total_val)).bold().size(header_size)).align(AlignmentType::Center))
+        ])
+        .row_height(row_height_header));
 
         let table = Table::new(table_rows);
         
@@ -409,26 +428,30 @@ pub fn generate_word_document_with_template(
         let notice_text = "1、此单可对账不做凭证；\n\n2、每月5日前为收费时间，超期按5%收滞纳金或停电；\n\n3、以上费用如有不明或差\n请到管理处核对。";
         doc = doc.add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(notice_text).size(9))
+                .add_run(Run::new().add_text(notice_text).size(notice_size))
         );
         
         // 表格之间的分隔符，以及按每页数量分页
         if index < merchants.len() - 1 {
-            // 分隔线一行
-            doc = doc.add_paragraph(
-                Paragraph::new()
-                    .add_run(Run::new().add_text("=".repeat(40)))
-            );
-
             // 页面分隔：每页显示 per_page 个表格
             if per_page != 0 && ((index + 1) % per_page == 0) {
+                // 添加分页符
                 doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
+            } else {
+                // 不分页时添加分隔线
+                doc = doc.add_paragraph(
+                    Paragraph::new()
+                        .add_run(Run::new().add_text("=".repeat(40)))
+                );
             }
         }
     }
 
     // 汇总表之前添加分页符，使其单独成页
-    doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
+    // 只有在不是刚分完页的情况下才添加分页符
+    if per_page == 0 || merchants.len() % per_page != 0 {
+        doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
+    }
 
     // 添加汇总表格
     doc = add_summary_table(doc, merchants)?;
@@ -653,35 +676,50 @@ fn rmb_upper(amount: f64) -> String {
 
 fn add_summary_table(mut doc: docx_rs::Docx, merchants: &[MerchantBill]) -> Result<docx_rs::Docx, anyhow::Error> {
     use docx_rs::*;
-    
+
     // 添加汇总表格标题
     doc = doc.add_paragraph(
         Paragraph::new()
-            .add_run(Run::new().add_text("费用汇总表").size(18).bold())
+            .add_run(Run::new().add_text("费用汇总表").size(36).bold())
             .align(AlignmentType::Center)
     );
-    
-    // 创建表格
+
+    // 空行
+    doc = doc.add_paragraph(Paragraph::new());
+
+    // 创建表格，设置较大的字体，保持原有宽度
     let mut table = Table::new(vec![
         TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("店铺名称").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电费合计（元）").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电人工费").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("垃圾处理费").bold())),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("总价").bold())),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("店铺名称").bold().size(24)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电费合计（元）").bold().size(24)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("水电人工费").bold().size(24)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("垃圾处理费").bold().size(24)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("总价").bold().size(24)).align(AlignmentType::Center)),
         ])
+        .row_height(600.0)
     ]);
 
     // 添加数据行
     for bill in merchants {
         let water_electricity_total = bill.water_amount + bill.electricity_amount;
         table = table.add_row(TableRow::new(vec![
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name))),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", water_electricity_total)))),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_electricity_labor_fee)))),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.garbage_disposal_fee)))),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)))),
-        ]));
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name).size(20)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", water_electricity_total)).size(20)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_electricity_labor_fee)).size(20)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.garbage_disposal_fee)).size(20)).align(AlignmentType::Center)),
+            TableCell::new()
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)).size(20)).align(AlignmentType::Center)),
+        ])
+        .row_height(500.0));
     }
 
     // 添加合计行
@@ -691,12 +729,18 @@ fn add_summary_table(mut doc: docx_rs::Docx, merchants: &[MerchantBill]) -> Resu
     let grand_total: f64 = merchants.iter().map(|b| b.total_fee).sum();
 
     table = table.add_row(TableRow::new(vec![
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water_electricity)).bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_labor_fee)).bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_garbage_fee)).bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold())),
-    ]));
+        TableCell::new()
+            .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(24)).align(AlignmentType::Center)),
+        TableCell::new()
+            .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water_electricity)).bold().size(24)).align(AlignmentType::Center)),
+        TableCell::new()
+            .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_labor_fee)).bold().size(24)).align(AlignmentType::Center)),
+        TableCell::new()
+            .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_garbage_fee)).bold().size(24)).align(AlignmentType::Center)),
+        TableCell::new()
+            .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold().size(24)).align(AlignmentType::Center)),
+    ])
+    .row_height(600.0));
 
     doc = doc.add_table(table);
     Ok(doc)

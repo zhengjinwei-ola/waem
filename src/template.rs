@@ -112,16 +112,16 @@ impl DocumentGenerator {
                         // 添加小标题
                         doc = doc.add_paragraph(
                             Paragraph::new()
-                                .add_run(Run::new().add_text(title).bold().size(self.config.section_font_size + 2))
+                                .add_run(Run::new().add_text(title).bold().size((self.config.section_font_size + 4) * 2))
                         );
                     }
-                    
+
                     if let Some(items) = &section.items {
                         for item in items {
                             let item_content = self.replace_placeholders(item, bill);
                             doc = doc.add_paragraph(
                                 Paragraph::new()
-                                    .add_run(Run::new().add_text(&item_content).size(self.config.section_font_size))
+                                    .add_run(Run::new().add_text(&item_content).size(self.config.section_font_size * 2))
                             );
                         }
                     }
@@ -264,16 +264,16 @@ impl DocumentGenerator {
                         if let Some(title) = &section.title {
                             doc = doc.add_paragraph(
                                 Paragraph::new()
-                                    .add_run(Run::new().add_text(title).bold().size(self.config.section_font_size + 2))
+                                    .add_run(Run::new().add_text(title).bold().size((self.config.section_font_size + 4) * 2))
                             );
                         }
-                        
+
                         if let Some(items) = &section.items {
                             for item in items {
                                 let item_content = self.replace_placeholders(item, bill);
                                 doc = doc.add_paragraph(
                                     Paragraph::new()
-                                        .add_run(Run::new().add_text(&item_content).size(self.config.section_font_size))
+                                        .add_run(Run::new().add_text(&item_content).size(self.config.section_font_size * 2))
                                 );
                             }
                         }
@@ -348,45 +348,45 @@ impl DocumentGenerator {
         let mut table = Table::new(vec![
             TableRow::new(vec![
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("序号").bold().size(32)))
-                    .width(1000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("序号").bold().size(40)))
+                    .width(1200, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("商家名称").bold().size(32)))
-                    .width(3500, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("商家名称").bold().size(40)))
+                    .width(4000, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费(元)").bold().size(32)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("水费(元)").bold().size(40)))
+                    .width(2400, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("电费(元)").bold().size(32)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("电费(元)").bold().size(40)))
+                    .width(2400, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计(元)").bold().size(32)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计(元)").bold().size(40)))
+                    .width(2400, WidthType::Dxa),
             ])
-            .height(600, HeightRule::AtLeast)
+            .height(800, HeightRule::AtLeast)
         ])
-        .width(10500, WidthType::Dxa);
+        .width(12400, WidthType::Dxa);
 
         // 添加数据行
         for (index, bill) in bills.iter().enumerate() {
             table = table.add_row(TableRow::new(vec![
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text((index + 1).to_string()).size(28)))
-                    .width(1000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text((index + 1).to_string()).size(36)))
+                    .width(1200, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name).size(28)))
-                    .width(3500, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(&bill.merchant_name).size(36)))
+                    .width(4000, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_amount)).size(28)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.water_amount)).size(36)))
+                    .width(2400, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.electricity_amount)).size(28)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.electricity_amount)).size(36)))
+                    .width(2400, WidthType::Dxa),
                 TableCell::new()
-                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)).size(28)))
-                    .width(2000, WidthType::Dxa),
+                    .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", bill.total_fee)).size(36)))
+                    .width(2400, WidthType::Dxa),
             ])
-            .height(500, HeightRule::AtLeast));
+            .height(700, HeightRule::AtLeast));
         }
 
         // 添加合计行
@@ -396,22 +396,22 @@ impl DocumentGenerator {
 
         table = table.add_row(TableRow::new(vec![
             TableCell::new()
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(32)))
-                .width(1000, WidthType::Dxa),
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("合计").bold().size(40)))
+                .width(1200, WidthType::Dxa),
             TableCell::new()
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("").bold().size(32)))
-                .width(3500, WidthType::Dxa),
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text("").bold().size(40)))
+                .width(4000, WidthType::Dxa),
             TableCell::new()
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water)).bold().size(32)))
-                .width(2000, WidthType::Dxa),
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_water)).bold().size(40)))
+                .width(2400, WidthType::Dxa),
             TableCell::new()
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_electricity)).bold().size(32)))
-                .width(2000, WidthType::Dxa),
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_electricity)).bold().size(40)))
+                .width(2400, WidthType::Dxa),
             TableCell::new()
-                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold().size(32)))
-                .width(2000, WidthType::Dxa),
+                .add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", grand_total)).bold().size(40)))
+                .width(2400, WidthType::Dxa),
         ])
-        .height(600, HeightRule::AtLeast));
+        .height(800, HeightRule::AtLeast));
 
         doc = doc.add_table(table);
         Ok(doc)

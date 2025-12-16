@@ -1,9 +1,9 @@
 {
   "document_title": "商家水费电费账单",
-  "title_font_size": 24,
+  "title_font_size": 40,
   "title_alignment": "center",
-  "section_font_size": 14,
-  "timestamp_font_size": 10,
+  "section_font_size": 28,
+  "timestamp_font_size": 22,
   "merchant_template": {
     "sections": [
       {
@@ -15,14 +15,14 @@
         "name": "merchant_info",
         "type": "text",
         "content": "商家名称：{merchant_name}",
-        "font_size": 16,
+        "font_size": 32,
         "bold": true
       },
       {
         "name": "period_info",
         "type": "text",
         "content": "账单期间：{year}年{month}月",
-        "font_size": 14
+        "font_size": 28
       },
       {
         "name": "water_meter",
@@ -66,7 +66,7 @@
         "name": "total_amount",
         "type": "text",
         "content": "费用合计：{total_amount} 元",
-        "font_size": 16,
+        "font_size": 36,
         "bold": true,
         "color": "FF0000"
       },
